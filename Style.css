@@ -11,7 +11,16 @@
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px)
 }
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--s1:#2b3f73;--s2:#13495e;--s3:#061a2b;--card:#0c2234ee;--ink:#f6e9c8;--line:#d8b25a}}
+@media(prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+        --s1:#2b3f73;
+        --s2:#13495e;
+        --s3:#061a2b;
+        --card:#0c2234ee;
+        --ink:#f6e9c8;
+        --line:#d8b25a
+    }
+}
 :root[data-theme="dark"]{--s1:#2b3f73;--s2:#13495e;--s3:#061a2b;--card:#0c2234ee;--ink:#f6e9c8;--line:#d8b25a}
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
 *,::before,::after{box-sizing:inherit}

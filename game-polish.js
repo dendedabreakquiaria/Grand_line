@@ -57,7 +57,72 @@ function crewButtonsMarkup(fighter) {
   return `<div class="chips crew-row"><b>Nakama:</b>${buttons}</div>`;
 }
 
-/** Chama um nakama: ele ataca (ou cura) no lugar da jogada do turno. */
+/* ------------- 1b. NAKAMA EM CENA: ROUPA DO ANIME, ENTRADA E GOLPE ------------- */
+
+/** Momento (ms) em que o nakama investe e dispara o golpe, e duração total até passar o turno. */
+const CREW_STRIKE_DELAY_MS = 850, CREW_TURN_DURATION_MS = 1900;
+
+/** Aparência de cada nakama: reaproveita as peças do personagem + cores exatas do anime. */
+Object.assign(BOSS_SKIN_DEFINITIONS, {
+  "Zoro": buildBossSkin(0, 1, 5, 4, 3, 0, 3, { hairColor: "#3f9b4a" }),
+  "Nami": buildBossSkin(0, 4, 5, 0, 0, 0, 0, { hairColor: "#f08a24", shirtColor: "#4fa8e8", pantsColor: "#2a5bd7" }),
+  "Usopp": buildBossSkin(0, 5, 5, 0, 0, 0, 0, { hairColor: "#2a1a0a", shirtColor: "#e8a23a", pantsColor: "#3a7d44" }),
+  "Sanji": buildBossSkin(0, 2, 5, 3, 3, 0, 0, { hairColor: "#f2d36b" }),
+  "Chopper": buildBossSkin(5, 0, 2, 0, 0, 0, 0, { skinColor: "#c8905a", hairColor: "#8a5a2a", hatColor: "#ff9ec8", shirtColor: "#8a5a2a", pantsColor: "#2a5bd7" }),
+  "Robin": buildBossSkin(0, 4, 5, 0, 3, 0, 0, { hairColor: "#111111", shirtColor: "#7a3f9a", pantsColor: "#1d1d1f" }),
+  "Franky": buildBossSkin(6, 1, 5, 0, 0, 0, 0, { hairColor: "#2a8fff", shirtColor: "#ff7a3a", pantsColor: "#2a64a8", skinColor: "#f0c8a0" }),
+  "Brook": buildBossSkin(0, 5, 1, 3, 3, 0, 0, { hairColor: "#111111", hatColor: "#14141a", skinColor: "#f4f4ee" }),
+  "Jinbe": buildBossSkin(1, 0, 5, 4, 0, 0, 0, { hairColor: "#1d3f61", shirtColor: "#2a5aa8", skinColor: "#5f9dbf" })
+});
+
+/** Dois desenhos de arma novos (índices 11 e 12 em SD2): Clima-Tact da Nami e Kabuto (estilingue) do Usopp. */
+SD2.push(
+  `<rect x="-14" y="-1.6" width="46" height="3.2" fill="#d8d8e0" stroke="#556"/><circle cx="32" r="3.6" fill="#4fb3ff"/><circle cx="-14" r="3" fill="#ffd34d"/>`,
+  `<rect x="-8" y="-1.5" width="10" height="3" fill="#6b4423"/><path d="M2 0L18-9M2 0L18 9" stroke="#6b4423" stroke-width="3" fill="none"/><path d="M18-9Q8 0 18 9" stroke="#c8231c" stroke-width="1.5" fill="none"/>`
+);
+
+/** Arma que cada nakama segura (Zoro usa a Wado Ichimonji do catálogo). */
+function crewWeaponFor(member) {
+  if (member.id === "zoro") return SW.find((sword) => sword.n === "Wado Ichimonji");
+  if (member.id === "nami") return { d: 11, c: "#4fb3ff" };
+  if (member.id === "usopp") return { d: 12, c: "#6b4423" };
+  return 0;
+}
+
+/** Desenho do nakama com a roupa do anime (usado na batalha e na tela da Tripulação). */
+function crewPortraitMarkup(member) {
+  const skin = BossSkinLibrary.skinFor(member.name, { r: 0, hr: 0, h: 5, s: 0, o: 0, c: 0, sc: 0, hk: 0 });
+  return stick(skin, crewWeaponFor(member), 0, 0);
+}
+
+/** Entrada em cena: aura colorida, nakama deslizando, banner com o nome do golpe. A CSS .crew-cameo faz a investida. */
+function showCrewCameo(member, attackerSide) {
+  const stage = document.querySelector(".stage");
+  if (!stage) return;
+  stage.insertAdjacentHTML("beforeend", `<div class="crew-layer"><div class="crew-cameo${attackerSide ? " r" : ""}" style="--dir:${attackerSide ? -1 : 1};--c:${member.effectColor};${attackerSide ? "right" : "left"}:6%"><div class="crew-aura"></div>${crewPortraitMarkup(member)}<b class="crew-name">${member.name}</b></div><div class="move-banner" style="--c:${member.effectColor}">${member.emoji} ${member.moveName}</div></div>`);
+}
+
+/** No instante da investida: efeito principal do golpe + explosão de partículas + número de dano/cura. */
+function performCrewAttackEffects(member, attackerSide, targetSide, numberText, numberClass, hitSomeone) {
+  fx(member.effectVariant, attackerSide, targetSide, member.effectEmoji, member.effectColor);
+  const effectsLayer = document.querySelector("#fx");
+  if (effectsLayer) {
+    const targetX = VisualEffectsDirector.positionOf(targetSide);
+    let particlesMarkup = "";
+    for (let index = 0; index < 14; index++) {
+      const angle = Math.random() * Math.PI * 2, distance = 40 + Math.random() * 80;
+      particlesMarkup += `<b class="vfx-particle" style="left:${targetX}%;--travelX:${Math.cos(angle) * distance}px;--travelY:${Math.sin(angle) * distance}px;animation-delay:${0.05 + Math.random() * 0.15}s">${index % 2 ? member.effectEmoji : member.emoji}</b>`;
+    }
+    effectsLayer.insertAdjacentHTML("beforeend", particlesMarkup);
+  }
+  setTimeout(() => {
+    const targetFigure = document.querySelector("#f" + targetSide + " .fig");
+    if (hitSomeone && targetFigure) targetFigure.classList.add("rc");
+    spawnFloatingText(targetSide, numberText, numberClass);
+  }, 380);
+}
+
+/** Chama um nakama: o resultado (dano/cura) é calculado na hora; o nakama aparece, investe e some. */
 function callCrewMember(memberId) {
   if (B.busy || B.over) return;
   const attacker = B.p[B.t], defender = B.p[1 - B.t], currentBattle = B, attackerSide = B.t;
@@ -65,12 +130,12 @@ function callCrewMember(memberId) {
   if (!member || !attacker.crew || (attacker.crewCooldown || {})[memberId]) return;
   attacker.crewCooldown = attacker.crewCooldown || {};
   attacker.crewCooldown[memberId] = CREW_COOLDOWN_TURNS;
-  let message = `${member.emoji} ${member.name} entra na luta: ${member.moveName}!`, damage = 0;
+  let message = `${member.emoji} ${member.name} entra na luta: ${member.moveName}!`, damage = 0, numberText = "", numberClass = "crew";
   if (member.healFraction) { // Chopper cura em vez de atacar
     const healAmount = Math.round(attacker.max * member.healFraction);
     attacker.hp = Math.min(attacker.max, attacker.hp + healAmount);
-    queueFloatingText(attackerSide, "+" + healAmount, "heal");
     message += ` (+${healAmount} de vida)`;
+    numberText = "+" + healAmount; numberClass = "heal";
   } else {
     const elementMultiplier = mult(member.element, defender.f ? defender.f.el : "fisico");
     damage = member.basePower * attacker.atk * (1 + S.lv * 0.03) * elementMultiplier * (0.9 + Math.random() * 0.2) * (1 - Math.min(0.7, defender.def));
@@ -78,17 +143,17 @@ function callCrewMember(memberId) {
     damage = Math.round(damage);
     defender.hp = Math.max(0, defender.hp - damage);
     message += ` (-${damage})`;
-    queueFloatingText(1 - attackerSide, "-" + damage, "crew");
+    numberText = "-" + damage;
     if (member.stunChance && Math.random() < member.stunChance) { defender.stun = 1; message += " Atordoado!"; }
   }
   if (member.hakiRestore) attacker.hk = Math.min(100, attacker.hk + member.hakiRestore);
   B.log.push(message);
   B.hit = damage ? 1 - attackerSide : -1;
   B.busy = 1;
-  fx(member.effectVariant, attackerSide, 1 - attackerSide, member.effectEmoji, member.effectColor);
-  const layer = document.querySelector("#fx");
-  if (layer) layer.insertAdjacentHTML("beforeend", `<b class="vfx-comic" style="left:${VisualEffectsDirector.positionOf(attackerSide)}%;top:8%">${member.emoji} ${member.name}!</b>`);
-  setTimeout(() => { currentBattle.busy = 0; if (B === currentBattle) next(); }, 1300);
+  showCrewCameo(member, attackerSide); // 1) o nakama entra em cena
+  const targetSide = member.healFraction ? attackerSide : 1 - attackerSide;
+  setTimeout(() => { if (B === currentBattle) performCrewAttackEffects(member, attackerSide, targetSide, numberText, numberClass, damage > 0); }, CREW_STRIKE_DELAY_MS); // 2) investida e golpe
+  setTimeout(() => { currentBattle.busy = 0; if (B === currentBattle) next(); }, CREW_TURN_DURATION_MS); // 3) passa o turno
 }
 
 /** Tela com todos os nakama, o golpe de cada um e como desbloquear. */
@@ -98,7 +163,7 @@ function showCrewScreen() {
   const cards = CREW_MEMBERS.map((member) => {
     const unlocked = unlockedIds.includes(member.id);
     const requirement = `Chegue à wave ${member.progressRequired % 30 + 1} do arco ${Math.floor(member.progressRequired / 30) + 1}`;
-    return `<div class="card" style="border-color:${unlocked ? "#3ddc84" : "#888"}"><h3>${member.emoji} ${member.name}</h3><b>${member.moveName}</b><p>${member.description}</p>${unlocked ? "<b>✓ Na tripulação</b>" : `<span class="off">${requirement}</span>`}</div>`;
+    return `<div class="card" style="border-color:${unlocked ? "#3ddc84" : "#888"}"><div class="prev">${crewPortraitMarkup(member)}</div><h3>${member.emoji} ${member.name}</h3><b>${member.moveName}</b><p>${member.description}</p>${unlocked ? "<b>✓ Na tripulação</b>" : `<span class="off">${requirement}</span>`}</div>`;
   }).join("");
   app.innerHTML = back() + `<h2>Tripulação</h2><div class="card"><small>Os nakama entram na luta como golpe de apoio (recarga de ${CREW_COOLDOWN_TURNS} turnos) e cada um dá +2% de dano. Eles se juntam conforme você avança na História.</small></div><div class="two">${cards}</div>`;
 }
@@ -330,4 +395,3 @@ function showAchievements() {
 S.crewSeen = S.crewSeen || unlockedCrewMembers().map((member) => member.id); // quem já está desbloqueado não gera aviso
 S.achievements = S.achievements || {};
 save();
-menu(); // redesenha o menu com os botões novos

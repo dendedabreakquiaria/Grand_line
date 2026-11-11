@@ -558,4 +558,3 @@ function mapv() {
 
 /* ------------------------------ 9. INICIALIZAÇÃO --------------------------- */
 FruitDataUpdater.apply();   // aplica as novas frutas, golpes, buff das espadas e missões extras
-menu();                     // redesenha o menu (o game.js já tinha desenhado a versão antiga)
